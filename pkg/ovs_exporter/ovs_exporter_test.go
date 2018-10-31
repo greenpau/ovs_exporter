@@ -17,7 +17,7 @@ package ovs_exporter
 import "testing"
 
 func TestNewExporter(t *testing.T) {
-	if _, err := NewExporter(exporterOpts{}); err != nil {
+	if _, err := NewExporter(Options{}); err != nil {
 		t.Errorf("expected no error, but got %q", err)
 	}
 }

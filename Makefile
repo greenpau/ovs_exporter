@@ -33,7 +33,7 @@ all:
 	@echo "Done!"
 
 test: all
-	@go test -v ./*.go
+	@go test -v ./$(PKG_DIR)/*.go
 	@echo "PASS: core tests"
 	@echo "OK: all tests passed!"
 
