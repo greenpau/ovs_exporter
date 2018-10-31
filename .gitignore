@@ -1,0 +1,8 @@
+/.build
+/.release
+/.tarballs
+/ovs-exporter
+*.tar.gz
+bin/
+dist/
+TODO
