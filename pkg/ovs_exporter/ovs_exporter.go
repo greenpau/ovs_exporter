@@ -15,6 +15,7 @@
 package ovs_exporter
 
 import (
+	"fmt"
 	//"github.com/davecgh/go-spew/spew"
 	"github.com/greenpau/ovsdb"
 	"github.com/prometheus/client_golang/prometheus"
@@ -93,6 +94,7 @@ var (
 		"The TCP port used for database connection. If the value is 0, then the port is not in use.",
 		[]string{"system_id", "component", "usage"}, nil,
 	)
+	// OVS Coverage and Memory
 	covAvg = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "coverage_avg"),
 		"The average rate of the number of times particular events occur during a OVSDB daemon's runtime.",
@@ -107,6 +109,175 @@ var (
 		prometheus.BuildFQName(namespace, "", "memory_usage"),
 		"The memory usage.",
 		[]string{"system_id", "component", "facility"}, nil,
+	)
+	// OVS Datapath
+	dpInterface = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_if"),
+		"Represents an existing datapath interface. This metrics is always 1.",
+		[]string{"system_id", "datapath", "bridge", "name", "ofport", "index", "port_type"}, nil,
+	)
+	dpBridgeInterfaceTotal = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_br_if_total"),
+		"The total number of interfaces attached to a bridge.",
+		[]string{"system_id", "datapath", "bridge"}, nil,
+	)
+	dpPacketHit = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_hit"),
+		"The number of packets for which there were flows (hit) in a datapath.",
+		[]string{"system_id", "datapath"}, nil,
+	)
+	dpPacketMiss = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_miss"),
+		"The number of packets for which there were not flows (miss) in a datapath.",
+		[]string{"system_id", "datapath"}, nil,
+	)
+	// OVS Interface
+	// Reference: http://www.openvswitch.org/support/dist-docs/ovs-vswitchd.conf.db.5.html
+	interfaceMain = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface"),
+		"Represents OVS interface. This is the primary metric for all other interface metrics. This metrics is always 1.",
+		[]string{"system_id", "uuid", "name"}, nil,
+	)
+	interfaceAdminState = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_admin_state"),
+		"The administrative state of the physical network link of OVS interface. The values are: down(0), up(1), other(2).",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceLinkState = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_link_state"),
+		"The  observed  state of the physical network link of OVS interface. The values are: down(0), up(1), other(2).",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceIngressPolicingBurst = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_ingress_policing_burst"),
+		"Maximum burst size for data received on OVS interface, in kb. The default burst size if set to 0 is 8000 kbit.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceIngressPolicingRate = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_ingress_policing_rate"),
+		"Maximum rate for data received on OVS interface, in kbps. If the value is 0, then policing is disabled.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceMacInUse = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_mac_in_use"),
+		"The MAC address in use by OVS interface.",
+		[]string{"system_id", "uuid", "mac_address"}, nil,
+	)
+	interfaceMtu = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_mtu"),
+		"The currently configured MTU for OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceDuplex = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_duplex"),
+		"The duplex mode of the physical network link of OVS interface. The values are: other(0), half(1), full(2).",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceOfPort = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_of_port"),
+		"Represents the OpenFlow port ID associated with OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceIfIndex = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_if_index"),
+		"Represents the interface index associated with OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceLocalIndex = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_local_index"),
+		"Represents the local index associated with OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	// OVS Interface Statistics: Receive errors
+	// See http://www.openvswitch.org/support/dist-docs/ovs-vswitchd.conf.db.5.html
+	interfaceStatRxCrcError = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_crc_err"),
+		"Represents the number of CRC errors for the packets received by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatRxDropped = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_dropped"),
+		"Represents the number of input packets dropped by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatRxFrameError = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_frame_err"),
+		"Represents the number of frame alignment errors on the packets received by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatRxOverrunError = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_over_err"),
+		"Represents the number of packets with RX overrun received by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatRxErrorsTotal = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_errors"),
+		"Represents the total number of packets with errors received by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	// OVS Interface Statistics: Successful transmit and receive counters
+	interfaceStatRxPackets = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_packets"),
+		"Represents the number of received packets by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatRxBytes = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_bytes"),
+		"Represents the number of received bytes by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatTxPackets = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_tx_packets"),
+		"Represents the number of transmitted packets by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatTxBytes = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_tx_bytes"),
+		"Represents the number of transmitted bytes by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	// OVS Interface Statistics: Transmit errors
+	interfaceStatTxDropped = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_tx_dropped"),
+		"Represents the number of output packets dropped by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatTxErrorsTotal = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_tx_errors"),
+		"Represents the total number of transmit errors by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceStatCollisions = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_collisions"),
+		"Represents the number of collisions on OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	// OVS Link attributes, e.g. speed, resets, etc.
+	interfaceLinkResets = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_link_resets"),
+		"The number of times Open vSwitch has observed the link_state of OVS interface change.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	interfaceLinkSpeed = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_link_speed"),
+		"The negotiated speed of the physical network link of OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
+	// Interface Status, Options, and External IDs Key-Value Pairs
+	interfaceStatusKeyValuePair = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_status"),
+		"Key-value pair that report port status of OVS interface.",
+		[]string{"system_id", "uuid", "key", "value"}, nil,
+	)
+	interfaceOptionsKeyValuePair = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_options"),
+		"Key-value pair that report options of OVS interface.",
+		[]string{"system_id", "uuid", "key", "value"}, nil,
+	)
+	interfaceExternalIdKeyValuePair = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_external_ids"),
+		"Key-value pair that report external IDs of OVS interface.",
+		[]string{"system_id", "uuid", "key", "value"}, nil,
 	)
 )
 
@@ -168,6 +339,38 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- covAvg
 	ch <- covTotal
 	ch <- memUsage
+	ch <- dpInterface
+	ch <- dpBridgeInterfaceTotal
+	ch <- dpPacketHit
+	ch <- dpPacketMiss
+	ch <- interfaceMain
+	ch <- interfaceAdminState
+	ch <- interfaceLinkState
+	ch <- interfaceIngressPolicingBurst
+	ch <- interfaceIngressPolicingRate
+	ch <- interfaceMacInUse
+	ch <- interfaceMtu
+	ch <- interfaceDuplex
+	ch <- interfaceOfPort
+	ch <- interfaceIfIndex
+	ch <- interfaceLocalIndex
+	ch <- interfaceStatRxCrcError
+	ch <- interfaceStatRxDropped
+	ch <- interfaceStatRxFrameError
+	ch <- interfaceStatRxOverrunError
+	ch <- interfaceStatRxErrorsTotal
+	ch <- interfaceStatRxPackets
+	ch <- interfaceStatRxBytes
+	ch <- interfaceStatTxPackets
+	ch <- interfaceStatTxBytes
+	ch <- interfaceStatTxDropped
+	ch <- interfaceStatTxErrorsTotal
+	ch <- interfaceStatCollisions
+	ch <- interfaceLinkResets
+	ch <- interfaceLinkSpeed
+	ch <- interfaceStatusKeyValuePair
+	ch <- interfaceOptionsKeyValuePair
+	ch <- interfaceExternalIdKeyValuePair
 }
 
 // IncrementErrorCounter increases the counter of failed queries
@@ -316,6 +519,7 @@ func (e *Exporter) GatherMetrics() {
 
 	components = []string{
 		"ovsdb-server",
+		"vswitchd-service",
 	}
 
 	for _, component := range components {
@@ -379,8 +583,334 @@ func (e *Exporter) GatherMetrics() {
 				}
 				log.Debugf("%s: GatherMetrics() completed GetAppMemoryMetrics(%s)", e.Client.System.ID, component)
 			}
+			if cmds["dpif/show"] && (component == "vswitchd-service") {
+				log.Debugf("%s: GatherMetrics() calls GetAppDatapath(%s)", e.Client.System.ID, component)
+				if dps, brs, intfs, err := e.Client.GetAppDatapath(component); err != nil {
+					log.Errorf("%s: %v", component, err)
+					e.IncrementErrorCounter()
+				} else {
+					for _, dp := range dps {
+						dpIntefaceCount := 0
+						for _, br := range brs {
+							if dp.Name != br.DatapathName {
+								continue
+							}
+							brIntefaceCount := 0
+							for _, intf := range intfs {
+								if dp.Name != intf.DatapathName || br.Name != intf.BridgeName {
+									continue
+								}
+								dpIntefaceCount += 1
+								brIntefaceCount += 1
+								e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+									dpInterface,
+									prometheus.GaugeValue,
+									1,
+									e.Client.System.ID,
+									dp.Name,
+									br.Name,
+									intf.Name,
+									fmt.Sprintf("%0.f", intf.OfPort),
+									fmt.Sprintf("%0.f", intf.Index),
+									intf.Type,
+								))
+							}
+							// Calculate the total number of interfaces per datapath
+							e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+								dpBridgeInterfaceTotal,
+								prometheus.GaugeValue,
+								float64(brIntefaceCount),
+								e.Client.System.ID,
+								dp.Name,
+								br.Name,
+							))
+						}
+						// Add datapath hits and misses
+						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+							dpPacketHit,
+							prometheus.CounterValue,
+							dp.Metrics.Hit,
+							e.Client.System.ID,
+							dp.Name,
+						))
+						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+							dpPacketMiss,
+							prometheus.CounterValue,
+							dp.Metrics.Miss,
+							e.Client.System.ID,
+							dp.Name,
+						))
+					}
+				}
+				log.Debugf("%s: GatherMetrics() completed GetAppDatapath(%s)", e.Client.System.ID, component)
+			}
 		}
 	}
+
+	log.Debugf("%s: GatherMetrics() calls GetDbInterfaces()", e.Client.System.ID)
+	if intfs, err := e.Client.GetDbInterfaces(); err != nil {
+		log.Errorf("%s: %v", "ovsdb-server", err)
+		e.IncrementErrorCounter()
+	} else {
+		for _, intf := range intfs {
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceMain,
+				prometheus.GaugeValue,
+				1,
+				e.Client.System.ID,
+				intf.UUID,
+				intf.Name,
+			))
+			var adminState float64
+			switch intf.AdminState {
+			case "down":
+				adminState = 0
+			case "up":
+				adminState = 1
+			default:
+				adminState = 2
+			}
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceAdminState,
+				prometheus.GaugeValue,
+				adminState,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			var linkState float64
+			switch intf.LinkState {
+			case "down":
+				linkState = 0
+			case "up":
+				linkState = 1
+			default:
+				linkState = 2
+			}
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceLinkState,
+				prometheus.GaugeValue,
+				linkState,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceIngressPolicingBurst,
+				prometheus.GaugeValue,
+				intf.IngressPolicingBurst,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceIngressPolicingRate,
+				prometheus.GaugeValue,
+				intf.IngressPolicingRate,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceMacInUse,
+				prometheus.GaugeValue,
+				1,
+				e.Client.System.ID,
+				intf.UUID,
+				intf.MacInUse,
+			))
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceMtu,
+				prometheus.GaugeValue,
+				intf.Mtu,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			var linkDuplex float64
+			switch intf.Duplex {
+			case "half":
+				linkDuplex = 1
+			case "full":
+				linkDuplex = 2
+			default:
+				linkDuplex = 0
+			}
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceDuplex,
+				prometheus.GaugeValue,
+				linkDuplex,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceOfPort,
+				prometheus.GaugeValue,
+				intf.OfPort,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceIfIndex,
+				prometheus.GaugeValue,
+				intf.IfIndex,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceLocalIndex,
+				prometheus.GaugeValue,
+				intf.Index,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			for key, value := range intf.Statistics {
+				switch key {
+				case "rx_crc_err":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxCrcError,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "rx_dropped":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxDropped,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "rx_frame_err":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxFrameError,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "rx_over_err":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxOverrunError,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "rx_errors":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxErrorsTotal,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "rx_packets":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxPackets,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "rx_bytes":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxBytes,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "tx_packets":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatTxPackets,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "tx_bytes":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatTxBytes,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "tx_dropped":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatTxDropped,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "tx_errors":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatTxErrorsTotal,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "collisions":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatCollisions,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				default:
+					log.Errorf("OVS interface statistics has unsupported key: %s, value: %d", key, value)
+				}
+			}
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceLinkResets,
+				prometheus.CounterValue,
+				intf.LinkResets,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+				interfaceLinkSpeed,
+				prometheus.GaugeValue,
+				intf.LinkSpeed,
+				e.Client.System.ID,
+				intf.UUID,
+			))
+			for key, value := range intf.Status {
+				e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+					interfaceStatusKeyValuePair,
+					prometheus.GaugeValue,
+					1,
+					e.Client.System.ID,
+					intf.UUID,
+					key,
+					value,
+				))
+			}
+			for key, value := range intf.Options {
+				e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+					interfaceOptionsKeyValuePair,
+					prometheus.GaugeValue,
+					1,
+					e.Client.System.ID,
+					intf.UUID,
+					key,
+					value,
+				))
+			}
+			for key, value := range intf.ExternalIDs {
+				e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+					interfaceExternalIdKeyValuePair,
+					prometheus.GaugeValue,
+					1,
+					e.Client.System.ID,
+					intf.UUID,
+					key,
+					value,
+				))
+			}
+		}
+	}
+	log.Debugf("%s: GatherMetrics() completed GetDbInterfaces()", e.Client.System.ID)
 
 	components = []string{
 		"ovsdb-server",
