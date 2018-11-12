@@ -121,14 +121,41 @@ var (
 		"The total number of interfaces attached to a bridge.",
 		[]string{"system_id", "datapath", "bridge"}, nil,
 	)
-	dpPacketHit = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "dp_hit"),
-		"The number of packets for which there were flows (hit) in a datapath.",
+	dpFlowsTotal = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_flows"),
+		"The number of flows in a datapath.",
 		[]string{"system_id", "datapath"}, nil,
 	)
-	dpPacketMiss = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "dp_miss"),
-		"The number of packets for which there were not flows (miss) in a datapath.",
+	// OVS Datapath: Lookups
+	dpLookupsHit = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_lookups_hit"),
+		"The number of incoming packets in a datapath matching existing flows in the datapath.",
+		[]string{"system_id", "datapath"}, nil,
+	)
+	dpLookupsMissed = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_lookups_missed"),
+		"The number of incoming packets in a datapath not matching any existing flow in the datapath.",
+		[]string{"system_id", "datapath"}, nil,
+	)
+	dpLookupsLost = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_lookups_lost"),
+		"Returns the number of incoming packets in a datapath destined for userspace process but subsequently dropped before reaching userspace.",
+		[]string{"system_id", "datapath"}, nil,
+	)
+	// OVS Datapath: Masks
+	dpMasksHit = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_masks_hit"),
+		"The total number of masks visited for matching incoming packets.",
+		[]string{"system_id", "datapath"}, nil,
+	)
+	dpMasksTotal = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_masks_total"),
+		"The number of masks in a datapath.",
+		[]string{"system_id", "datapath"}, nil,
+	)
+	dpMasksHitRatio = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "dp_masks_hit_ratio"),
+		"The average number of masks visited per packet. It is the ration between hit and total number of packets processed by a datapath.",
 		[]string{"system_id", "datapath"}, nil,
 	)
 	// OVS Interface
@@ -341,8 +368,13 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- memUsage
 	ch <- dpInterface
 	ch <- dpBridgeInterfaceTotal
-	ch <- dpPacketHit
-	ch <- dpPacketMiss
+	ch <- dpLookupsHit
+	ch <- dpFlowsTotal
+	ch <- dpLookupsMissed
+	ch <- dpMasksHit
+	ch <- dpMasksTotal
+	ch <- dpMasksHitRatio
+	ch <- dpLookupsLost
 	ch <- interfaceMain
 	ch <- interfaceAdminState
 	ch <- interfaceLinkState
@@ -627,16 +659,53 @@ func (e *Exporter) GatherMetrics() {
 						}
 						// Add datapath hits and misses
 						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
-							dpPacketHit,
+							dpLookupsHit,
 							prometheus.CounterValue,
-							dp.Metrics.Hit,
+							dp.Lookups.Hit,
 							e.Client.System.ID,
 							dp.Name,
 						))
 						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
-							dpPacketMiss,
+							dpLookupsMissed,
 							prometheus.CounterValue,
-							dp.Metrics.Miss,
+							dp.Lookups.Missed,
+							e.Client.System.ID,
+							dp.Name,
+						))
+						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+							dpLookupsLost,
+							prometheus.CounterValue,
+							dp.Lookups.Lost,
+							e.Client.System.ID,
+							dp.Name,
+						))
+						// Add datapath flows
+						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+							dpFlowsTotal,
+							prometheus.GaugeValue,
+							dp.Flows,
+							e.Client.System.ID,
+							dp.Name,
+						))
+						// Add datapath masks
+						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+							dpMasksHit,
+							prometheus.CounterValue,
+							dp.Masks.Hit,
+							e.Client.System.ID,
+							dp.Name,
+						))
+						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+							dpMasksTotal,
+							prometheus.CounterValue,
+							dp.Masks.Total,
+							e.Client.System.ID,
+							dp.Name,
+						))
+						e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+							dpMasksHitRatio,
+							prometheus.GaugeValue,
+							dp.Masks.HitRatio,
 							e.Client.System.ID,
 							dp.Name,
 						))
