@@ -6,7 +6,7 @@ BUILD_USER:=$(shell whoami)
 BUILD_DATE:=$(shell date +"%Y-%m-%d")
 BINARY:=ovs-exporter
 VERBOSE:=-v
-PROJECT=github.com/ovnworks/ovs_exporter
+PROJECT=github.com/forward53/ovs_exporter
 PKG_DIR=pkg/ovs_exporter
 
 all:

@@ -14,7 +14,7 @@ This exporter exports metrics from the following OVS components:
 Run the following commands to install it:
 
 ```bash
-wget https://github.com/ovnworks/ovs_exporter/releases/download/v1.0.0/ovs-exporter-1.0.0.linux-amd64.tar.gz
+wget https://github.com/forward53/ovs_exporter/releases/download/v1.0.0/ovs-exporter-1.0.0.linux-amd64.tar.gz
 tar xvzf ovs-exporter-1.0.0.linux-amd64.tar.gz
 cd ovs-exporter*
 ./install.sh
@@ -28,9 +28,9 @@ Run the following commands to build and test it:
 
 ```bash
 cd $GOPATH/src
-mkdir -p github.com/ovnworks
-cd github.com/ovnworks
-git clone https://github.com/ovnworks/ovs_exporter.git
+mkdir -p github.com/forward53
+cd github.com/forward53
+git clone https://github.com/forward53/ovs_exporter.git
 cd ovs_exporter
 make
 make qtest
