@@ -65,7 +65,7 @@ dist: all
 	@cd ./dist/ && tar -cvzf ./$(BINARY)-$(APP_VERSION).linux-amd64.tar.gz ./$(BINARY)-$(APP_VERSION).linux-amd64
 
 license:
-	@addlicense -c "Paul Greenberg greenpau@outlook.com" -y 2020 pkg/*/*/*.go pkg/*/*.go *.go
+	@addlicense -c "Paul Greenberg greenpau@outlook.com" -y 2020 pkg/*/*.go
 
 release: license
 	@echo "Making release"
