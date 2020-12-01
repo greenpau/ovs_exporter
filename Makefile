@@ -42,6 +42,14 @@ clean:
 	@rm -rf dist/
 	@echo "OK: clean up completed"
 
+dep:
+	@echo "Making dependencies check ..."
+	@go get -u golang.org/x/lint/golint
+	@go get -u golang.org/x/tools/cmd/godoc
+	@go get -u github.com/kyoh86/richgo
+	@go get -u github.com/greenpau/versioned/cmd/versioned
+	@go get -u github.com/google/addlicense
+
 deploy:
 	@sudo rm -rf /usr/sbin/$(BINARY)
 	@sudo cp ./bin/$(BINARY) /usr/sbin/$(BINARY)
