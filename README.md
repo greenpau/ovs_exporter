@@ -1,5 +1,7 @@
 # Open Virtual Switch (OVS) Exporter
 
+<a href="https://github.com/greenpau/ovs_exporter/actions/" target="_blank"><img src="https://github.com/greenpau/ovs_exporter/workflows/build/badge.svg?branch=main"></a>
+
 Export Open Virtual Switch (OVS) data to Prometheus.
 
 ## Introduction
