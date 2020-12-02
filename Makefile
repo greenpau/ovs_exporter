@@ -33,7 +33,11 @@ all:
 	@echo "Done!"
 
 test: all
-	@go test -v ./$(PKG_DIR)/*.go
+	@mkdir -p .coverage
+	@go test -c $(VERBOSE) -coverprofile=.coverage/coverage.out ./pkg/ovs_exporter/*.go;\
+		mv ./ovs_exporter.test ./pkg/ovs_exporter/ovs_exporter.test;\
+		chmod +x ./pkg/ovs_exporter/ovs_exporter.test;\
+		sudo ./pkg/ovs_exporter/ovs_exporter.test -test.v -test.testlogfile ./.coverage/test.log -test.coverprofile ./.coverage/coverage.out
 	@echo "PASS: core tests"
 	@echo "OK: all tests passed!"
 
