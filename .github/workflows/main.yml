@@ -55,6 +55,10 @@ jobs:
     - name: Open vSwitch Checks
       run: |
         ovs-vsctl --version
+        ovs-ctl --system-id=random start
+        ovs-ctl status
+        ovs-vsctl list bridge
+        ps -ef
     - name: Validate prerequisites
       run: |
         echo "*** Local binaries ***"
