@@ -56,8 +56,8 @@ jobs:
       run: |
         sudo ovs-vsctl --version
         sudo ovs-vsctl show
-        sudo ovs-ctl --system-id=random start
-        sudo ovs-ctl status
+        sudo systemctl status openvswitch-switch.service
+        sudo ovs-vsctl add-br br0
         sudo ovs-vsctl list bridge
         sudo ps -ef
     - name: Validate prerequisites
