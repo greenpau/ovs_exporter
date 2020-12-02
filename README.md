@@ -58,3 +58,29 @@ ovs_up 1
 ```bash
 ./bin/ovs-exporter --help
 ```
+
+## Development Notes
+
+Run the following command to build `arm64`:
+
+```bash
+make BUILD_OS="linux" BUILD_ARCH="arm64"
+```
+
+Next, package the binary:
+
+```bash
+make BUILD_OS="linux" BUILD_ARCH="arm64" dist
+```
+
+After a successful release, upload packages to Github:
+
+```bash
+owner=$(cat .git/config  | egrep "^\s+url" | cut -d":" -f2 | cut -d"/" -f1)
+repo=$(cat .git/config  | egrep "^\s+url" | cut -d":" -f2 | cut -d"/" -f2 | sed 's/.git$//')
+tag="v$(< VERSION)"
+github_api_token="PASTE_TOKEN_HERE"
+filename="./dist/${repo}-$(< VERSION).linux-amd64.tar.gz"
+upload-github-release-asset.sh github_api_token=${github_api_token} owner=${owner} repo=${repo} tag=${tag} filename=dist/ovs-exporter-$(< VERSION).linux-amd64.tar.gz
+upload-github-release-asset.sh github_api_token=${github_api_token} owner=${owner} repo=${repo} tag=${tag} filename=dist/ovs-exporter-$(< VERSION).linux-arm64.tar.gz
+```
