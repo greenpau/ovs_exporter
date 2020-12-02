@@ -42,6 +42,10 @@ test: all
 	@echo "PASS: core tests"
 	@echo "OK: all tests passed!"
 
+coverage:
+	@go tool cover -html=.coverage/coverage.out -o .coverage/coverage.html
+	@go tool cover -func=.coverage/coverage.out
+
 clean:
 	@rm -rf bin/
 	@rm -rf dist/
