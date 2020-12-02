@@ -54,11 +54,12 @@ jobs:
         make dep
     - name: Open vSwitch Checks
       run: |
-        ovs-vsctl --version
-        ovs-ctl --system-id=random start
-        ovs-ctl status
-        ovs-vsctl list bridge
-        ps -ef
+        sudo ovs-vsctl --version
+        sudo ovs-vsctl show
+        sudo ovs-ctl --system-id=random start
+        sudo ovs-ctl status
+        sudo ovs-vsctl list bridge
+        sudo ps -ef
     - name: Validate prerequisites
       run: |
         echo "*** Local binaries ***"
