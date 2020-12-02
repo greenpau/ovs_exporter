@@ -1,3 +1,5 @@
+.coverage/
+ovs_exporter.test
 /.build
 /.release
 /.tarballs
