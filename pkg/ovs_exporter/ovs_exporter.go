@@ -242,6 +242,11 @@ var (
 		"Represents the total number of packets with errors received by OVS interface.",
 		[]string{"system_id", "uuid"}, nil,
 	)
+	interfaceStatRxMissedErrors = prometheus.NewDesc(
+                prometheus.BuildFQName(namespace, "", "interface_rx_missed_errors"),
+                "Represents the number of missed packets received by OVS interface.",
+                []string{"system_id", "uuid"}, nil,
+        )
 	// OVS Interface Statistics: Successful transmit and receive counters
 	interfaceStatRxPackets = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "interface_rx_packets"),
@@ -391,6 +396,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- interfaceStatRxFrameError
 	ch <- interfaceStatRxOverrunError
 	ch <- interfaceStatRxErrorsTotal
+	ch <- interfaceStatRxMissedErrors
 	ch <- interfaceStatRxPackets
 	ch <- interfaceStatRxBytes
 	ch <- interfaceStatTxPackets
@@ -926,6 +932,14 @@ func (e *Exporter) GatherMetrics() {
 						e.Client.System.ID,
 						intf.UUID,
 					))
+				case "rx_missed_errors":
+                                        e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+                                                interfaceStatRxMissedErrors,
+                                                prometheus.CounterValue,
+                                                float64(value),
+                                                e.Client.System.ID,
+                                                intf.UUID,
+                                        ))
 				default:
 					log.Errorf("OVS interface statistics has unsupported key: %s, value: %d", key, value)
 				}
