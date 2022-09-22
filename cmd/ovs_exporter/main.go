@@ -6,7 +6,7 @@ import (
 	ovs "github.com/greenpau/ovs_exporter/pkg/ovs_exporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	log "github.com/prometheus/common/promlog"
 	"net/http"
 	"os"
 )

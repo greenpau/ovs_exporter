@@ -19,7 +19,7 @@ import (
 	//"github.com/davecgh/go-spew/spew"
 	"github.com/greenpau/ovsdb"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
+	log "github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/version"
 	_ "net/http/pprof"
 	"sync"
@@ -243,10 +243,10 @@ var (
 		[]string{"system_id", "uuid"}, nil,
 	)
 	interfaceStatRxMissedErrors = prometheus.NewDesc(
-                prometheus.BuildFQName(namespace, "", "interface_rx_missed_errors"),
-                "Represents the number of missed packets received by OVS interface.",
-                []string{"system_id", "uuid"}, nil,
-        )
+		prometheus.BuildFQName(namespace, "", "interface_rx_missed_errors"),
+		"Represents the number of missed packets received by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
 	// OVS Interface Statistics: Successful transmit and receive counters
 	interfaceStatRxPackets = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "interface_rx_packets"),
@@ -933,13 +933,13 @@ func (e *Exporter) GatherMetrics() {
 						intf.UUID,
 					))
 				case "rx_missed_errors":
-                                        e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
-                                                interfaceStatRxMissedErrors,
-                                                prometheus.CounterValue,
-                                                float64(value),
-                                                e.Client.System.ID,
-                                                intf.UUID,
-                                        ))
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxMissedErrors,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
 				default:
 					log.Errorf("OVS interface statistics has unsupported key: %s, value: %d", key, value)
 				}
