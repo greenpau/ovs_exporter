@@ -3,12 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	"os"
+
+	"github.com/go-kit/log/level"
 	ovs "github.com/greenpau/ovs_exporter/pkg/ovs_exporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
-	"net/http"
-	"os"
+	"github.com/prometheus/common/promlog"
 )
 
 func main() {
@@ -65,10 +67,17 @@ func main() {
 		Timeout: pollTimeout,
 	}
 
-	if err := log.Base().SetLevel(logLevel); err != nil {
-		log.Errorf(err.Error())
-		os.Exit(1)
+	allowedLogLevel := &promlog.AllowedLevel{}
+	if err := allowedLogLevel.Set(logLevel); err != nil {
+		fmt.Fprintf(os.Stderr, "%s", err.Error());
+		os.Exit(1);
 	}
+
+	promlogConfig := &promlog.Config{
+		Level: allowedLogLevel,
+	}
+
+	logger := promlog.New(promlogConfig)
 
 	if isShowVersion {
 		fmt.Fprintf(os.Stdout, "%s %s", ovs.GetExporterName(), ovs.GetVersion())
@@ -80,13 +89,22 @@ func main() {
 		os.Exit(0)
 	}
 
-	log.Infof("Starting %s %s", ovs.GetExporterName(), ovs.GetVersionInfo())
-	log.Infof("Build context %s", ovs.GetVersionBuildContext())
-
+	level.Info(logger).Log(
+		"msg", "Starting exporter", 
+		"exporter", ovs.GetExporterName(), 
+		"version", ovs.GetVersionInfo(),
+		"build_context", ovs.GetVersionBuildContext(),
+	)
+	
 	exporter, err := ovs.NewExporter(opts)
 	if err != nil {
-		log.Errorf("%s failed to init properly: %s", ovs.GetExporterName(), err)
+		level.Error(logger).Log(
+			"msg",  "failed to init properly",
+			"error", err.Error(),
+		)
+		os.Exit(1);
 	}
+	exporter.SetLogger(logger)
 
 	exporter.Client.System.RunDir = systemRunDir
 
@@ -103,7 +121,8 @@ func main() {
 	exporter.Client.Service.OvnController.File.Log.Path = serviceOvnControllerFileLogPath
 	exporter.Client.Service.OvnController.File.Pid.Path = serviceOvnControllerFilePidPath
 
-	log.Infof("OVS system-id: %s", exporter.Client.System.ID)
+	level.Info(logger).Log("ovs_system_id",exporter.Client.System.ID)
+
 	exporter.SetPollInterval(int64(pollInterval))
 	prometheus.MustRegister(exporter)
 
@@ -118,6 +137,12 @@ func main() {
              </html>`))
 	})
 
-	log.Infoln("Listening on", listenAddress)
-	log.Fatal(http.ListenAndServe(listenAddress, nil))
+	level.Info(logger).Log("listen_on ", listenAddress)
+	if err := http.ListenAndServe(listenAddress, nil); err != nil {
+		level.Error(logger).Log(
+			"msg",  "listener failed",
+			"error", err.Error(),
+		)
+		os.Exit(1);
+	}
 }

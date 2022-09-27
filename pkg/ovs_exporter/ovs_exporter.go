@@ -16,15 +16,16 @@ package ovs_exporter
 
 import (
 	"fmt"
-	//"github.com/davecgh/go-spew/spew"
-	"github.com/greenpau/ovsdb"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
-	"github.com/prometheus/common/version"
 	_ "net/http/pprof"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+	"github.com/greenpau/ovsdb"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/version"
 )
 
 const (
@@ -243,10 +244,10 @@ var (
 		[]string{"system_id", "uuid"}, nil,
 	)
 	interfaceStatRxMissedErrors = prometheus.NewDesc(
-                prometheus.BuildFQName(namespace, "", "interface_rx_missed_errors"),
-                "Represents the number of missed packets received by OVS interface.",
-                []string{"system_id", "uuid"}, nil,
-        )
+		prometheus.BuildFQName(namespace, "", "interface_rx_missed_errors"),
+		"Represents the number of missed packets received by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
 	// OVS Interface Statistics: Successful transmit and receive counters
 	interfaceStatRxPackets = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "interface_rx_packets"),
@@ -324,6 +325,7 @@ type Exporter struct {
 	errorsLocker         sync.RWMutex
 	nextCollectionTicker int64
 	metrics              []prometheus.Metric
+	logger               log.Logger
 }
 
 type Options struct {
@@ -344,16 +346,36 @@ func NewExporter(opts Options) (*Exporter, error) {
 	client.Timeout = opts.Timeout
 	e.Client = client
 	e.Client.GetSystemID()
-	log.Debugf("%s: NewExporter() calls Connect()", e.Client.System.ID)
+
+	level.Debug(e.logger).Log(
+		"msg", "NewExporter() calls Connect()",
+		"ovs_system_id", e.Client.System.ID,
+	)
+
 	if err := client.Connect(); err != nil {
 		return &e, err
 	}
-	log.Debugf("%s: NewExporter() calls GetSystemInfo()", e.Client.System.ID)
+
+	level.Debug(e.logger).Log(
+		"msg", "NewExporter() calls GetSystemInfo()",
+		"ovs_system_id", e.Client.System.ID,
+	)
+
 	if err := e.Client.GetSystemInfo(); err != nil {
 		return &e, err
 	}
-	log.Debugf("%s: NewExporter() initialized successfully", e.Client.System.ID)
+
+	level.Debug(e.logger).Log(
+		"msg", "NewExporter() initialized successfully",
+		"ovs_system_id", e.Client.System.ID,
+	)
+
 	return &e, nil
+}
+
+// SetLogger sets exporter logger.
+func (e *Exporter) SetLogger(logger log.Logger) {
+	e.logger = logger
 }
 
 // Describe describes all the metrics ever exported by the OVN exporter. It
@@ -422,11 +444,20 @@ func (e *Exporter) IncrementErrorCounter() {
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.GatherMetrics()
-	log.Debugf("%s: Collect() calls RLock()", e.Client.System.ID)
+
+	level.Debug(e.logger).Log(
+		"msg", "Collect() calls RLock()",
+		"ovs_system_id", e.Client.System.ID,
+	)
+
 	e.RLock()
 	defer e.RUnlock()
 	if len(e.metrics) == 0 {
-		log.Debugf("%s: Collect() no metrics found", e.Client.System.ID)
+		level.Debug(e.logger).Log(
+			"msg", "Collect() no metrics found",
+			"ovs_system_id", e.Client.System.ID,
+		)
+
 		ch <- prometheus.MustNewConstMetric(
 			up,
 			prometheus.GaugeValue,
@@ -454,7 +485,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		)
 		return
 	}
-	log.Debugf("%s: Collect() sends %d metrics to a shared channel", e.Client.System.ID, len(e.metrics))
+
+	level.Debug(e.logger).Log(
+		"msg", "Collect() sends metrics to a shared channel",
+		"ovs_system_id", e.Client.System.ID,
+		"metric_count", len(e.metrics),
+	)
+
 	for _, m := range e.metrics {
 		ch <- m
 	}
@@ -463,16 +500,26 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 // GatherMetrics collect data from OVN server and stores them
 // as Prometheus metrics.
 func (e *Exporter) GatherMetrics() {
-	log.Debugf("%s: GatherMetrics() called", e.Client.System.ID)
+	level.Debug(e.logger).Log(
+		"msg", "GatherMetrics() called",
+		"ovs_system_id", e.Client.System.ID,
+	)
+
 	if time.Now().Unix() < e.nextCollectionTicker {
 		return
 	}
 	e.Lock()
-	log.Debugf("%s: GatherMetrics() locked", e.Client.System.ID)
+	level.Debug(e.logger).Log(
+		"msg", "GatherMetrics() locked",
+		"ovs_system_id", e.Client.System.ID,
+	)
 	defer e.Unlock()
 	if len(e.metrics) > 0 {
 		e.metrics = e.metrics[:0]
-		log.Debugf("%s: GatherMetrics() cleared metrics", e.Client.System.ID)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() cleared metrics",
+			"ovs_system_id", e.Client.System.ID,
+		)
 	}
 	upValue := 1
 
@@ -480,11 +527,20 @@ func (e *Exporter) GatherMetrics() {
 
 	err = e.Client.GetSystemInfo()
 	if err != nil {
-		log.Errorf("%s: %v", e.Client.Database.Vswitch.Name, err)
+		level.Error(e.logger).Log(
+			"msg", "GetSystemInfo() failed",
+			"vswitch_name", e.Client.Database.Vswitch.Name,
+			"ovs_system_id", e.Client.System.ID,
+			"error", err.Error(),
+		)
 		e.IncrementErrorCounter()
 		upValue = 0
 	} else {
-		log.Debugf("%s: system-id: %s", e.Client.Database.Vswitch.Name, e.Client.System.ID)
+		level.Debug(e.logger).Log(
+			"msg", "GetSystemInfo() successful",
+			"vswitch_name", e.Client.Database.Vswitch.Name,
+			"ovs_system_id", e.Client.System.ID,
+		)
 	}
 
 	components := []string{
@@ -493,9 +549,19 @@ func (e *Exporter) GatherMetrics() {
 	}
 	for _, component := range components {
 		p, err := e.Client.GetProcessInfo(component)
-		log.Debugf("%s: GatherMetrics() calls GetProcessInfo(%s)", e.Client.System.ID, component)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() calls GetProcessInfo()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
+
 		if err != nil {
-			log.Errorf("%s: pid-%v", component, err)
+			level.Error(e.logger).Log(
+				"msg", "GetProcessInfo() failed",
+				"component", component,
+				"ovs_system_id", e.Client.System.ID,
+				"error", err.Error(),
+			)
 			e.IncrementErrorCounter()
 			upValue = 0
 		}
@@ -508,7 +574,11 @@ func (e *Exporter) GatherMetrics() {
 			p.User,
 			p.Group,
 		))
-		log.Debugf("%s: GatherMetrics() completed GetProcessInfo(%s)", e.Client.System.ID, component)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() completed GetProcessInfo()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
 	}
 
 	components = []string{
@@ -516,14 +586,29 @@ func (e *Exporter) GatherMetrics() {
 		"ovs-vswitchd",
 	}
 	for _, component := range components {
-		log.Debugf("%s: GatherMetrics() calls GetLogFileInfo(%s)", e.Client.System.ID, component)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() calls GetLogFileInfo()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
+
 		file, err := e.Client.GetLogFileInfo(component)
 		if err != nil {
-			log.Errorf("%s: log-file-%v", component, err)
+			level.Error(e.logger).Log(
+				"msg", "GetLogFileInfo() failed",
+				"component", component,
+				"ovs_system_id", e.Client.System.ID,
+				"error", err.Error(),
+			)
 			e.IncrementErrorCounter()
 			continue
 		}
-		log.Debugf("%s: GatherMetrics() completed GetLogFileInfo(%s)", e.Client.System.ID, component)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() completed GetLogFileInfo()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
+
 		e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
 			logFileSize,
 			prometheus.GaugeValue,
@@ -532,14 +617,31 @@ func (e *Exporter) GatherMetrics() {
 			file.Component,
 			file.Path,
 		))
-		log.Debugf("%s: GatherMetrics() calls GetLogFileEventStats(%s)", e.Client.System.ID, component)
+
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() calls GetLogFileEventStats()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
+
 		eventStats, err := e.Client.GetLogFileEventStats(component)
 		if err != nil {
-			log.Errorf("%s: log-event-stat: %v", component, err)
+			level.Error(e.logger).Log(
+				"msg", "GetLogFileEventStats() failed",
+				"component", component,
+				"ovs_system_id", e.Client.System.ID,
+				"error", err.Error(),
+			)
 			e.IncrementErrorCounter()
 			continue
 		}
-		log.Debugf("%s: GatherMetrics() completed GetLogFileEventStats(%s)", e.Client.System.ID, component)
+
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() completed GetLogFileEventStats()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
+
 		for sev, sources := range eventStats {
 			for source, count := range sources {
 				e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
@@ -561,21 +663,48 @@ func (e *Exporter) GatherMetrics() {
 	}
 
 	for _, component := range components {
-		log.Debugf("%s: GatherMetrics() calls AppListCommands(%s)", e.Client.System.ID, component)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() calls AppListCommands()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
+
 		if cmds, err := e.Client.AppListCommands(component); err != nil {
-			log.Errorf("%s: %v", component, err)
+			level.Error(e.logger).Log(
+				"msg", "AppListCommands() failed",
+				"component", component,
+				"ovs_system_id", e.Client.System.ID,
+				"error", err.Error(),
+			)
 			e.IncrementErrorCounter()
-			log.Debugf("%s: GatherMetrics() completed AppListCommands(%s)", e.Client.System.ID, component)
+			level.Debug(e.logger).Log(
+				"msg", "GatherMetrics() completed AppListCommands()",
+				"component", component,
+				"ovs_system_id", e.Client.System.ID,
+			)
 		} else {
-			log.Debugf("%s: GatherMetrics() completed AppListCommands(%s)", e.Client.System.ID, component)
+			level.Debug(e.logger).Log(
+				"msg", "GatherMetrics() completed AppListCommands()",
+				"component", component,
+				"ovs_system_id", e.Client.System.ID,
+			)
 			if cmds["coverage/show"] {
-				log.Debugf("%s: GatherMetrics() calls GetAppCoverageMetrics(%s)", e.Client.System.ID, component)
+				level.Debug(e.logger).Log(
+					"msg", "GatherMetrics() calls GetAppCoverageMetrics()",
+					"component", component,
+					"ovs_system_id", e.Client.System.ID,
+				)
+
 				if metrics, err := e.Client.GetAppCoverageMetrics(component); err != nil {
-					log.Errorf("%s: %v", component, err)
+					level.Error(e.logger).Log(
+						"msg", "GetAppCoverageMetrics() failed",
+						"component", component,
+						"ovs_system_id", e.Client.System.ID,
+						"error", err.Error(),
+					)
 					e.IncrementErrorCounter()
 				} else {
 					for event, metric := range metrics {
-						//log.Infof("%s: %s, %s", component, name, metric)
 						for period, value := range metric {
 							if period == "total" {
 								e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
@@ -600,12 +729,25 @@ func (e *Exporter) GatherMetrics() {
 						}
 					}
 				}
-				log.Debugf("%s: GatherMetrics() completed GetAppCoverageMetrics(%s)", e.Client.System.ID, component)
+				level.Debug(e.logger).Log(
+					"msg", "GatherMetrics() completed GetAppCoverageMetrics()",
+					"component", component,
+					"ovs_system_id", e.Client.System.ID,
+				)
 			}
 			if cmds["memory/show"] {
-				log.Debugf("%s: GatherMetrics() calls GetAppMemoryMetrics(%s)", e.Client.System.ID, component)
+				level.Debug(e.logger).Log(
+					"msg", "GatherMetrics() calls GetAppMemoryMetrics()",
+					"component", component,
+					"ovs_system_id", e.Client.System.ID,
+				)
 				if metrics, err := e.Client.GetAppMemoryMetrics(component); err != nil {
-					log.Errorf("%s: %v", component, err)
+					level.Error(e.logger).Log(
+						"msg", "GetAppMemoryMetrics() failed",
+						"component", component,
+						"ovs_system_id", e.Client.System.ID,
+						"error", err.Error(),
+					)
 					e.IncrementErrorCounter()
 				} else {
 					for facility, value := range metrics {
@@ -619,12 +761,26 @@ func (e *Exporter) GatherMetrics() {
 						))
 					}
 				}
-				log.Debugf("%s: GatherMetrics() completed GetAppMemoryMetrics(%s)", e.Client.System.ID, component)
+				level.Debug(e.logger).Log(
+					"msg", "GatherMetrics() completed GetAppMemoryMetrics()",
+					"component", component,
+					"ovs_system_id", e.Client.System.ID,
+				)
 			}
 			if cmds["dpif/show"] && (component == "vswitchd-service") {
-				log.Debugf("%s: GatherMetrics() calls GetAppDatapath(%s)", e.Client.System.ID, component)
+				level.Debug(e.logger).Log(
+					"msg", "GatherMetrics() calls GetAppDatapath()",
+					"component", component,
+					"ovs_system_id", e.Client.System.ID,
+				)
+
 				if dps, brs, intfs, err := e.Client.GetAppDatapath(component); err != nil {
-					log.Errorf("%s: %v", component, err)
+					level.Error(e.logger).Log(
+						"msg", "GetAppDatapath() failed",
+						"component", component,
+						"ovs_system_id", e.Client.System.ID,
+						"error", err.Error(),
+					)
 					e.IncrementErrorCounter()
 				} else {
 					for _, dp := range dps {
@@ -717,14 +873,26 @@ func (e *Exporter) GatherMetrics() {
 						))
 					}
 				}
-				log.Debugf("%s: GatherMetrics() completed GetAppDatapath(%s)", e.Client.System.ID, component)
+				level.Debug(e.logger).Log(
+					"msg", "GatherMetrics() completed GetAppDatapath()",
+					"component", component,
+					"ovs_system_id", e.Client.System.ID,
+				)
 			}
 		}
 	}
 
-	log.Debugf("%s: GatherMetrics() calls GetDbInterfaces()", e.Client.System.ID)
+	level.Debug(e.logger).Log(
+		"msg", "GatherMetrics() calls GetDbInterfaces()",
+		"ovs_system_id", e.Client.System.ID,
+	)
+
 	if intfs, err := e.Client.GetDbInterfaces(); err != nil {
-		log.Errorf("%s: %v", "ovsdb-server", err)
+		level.Error(e.logger).Log(
+			"msg", "GetDbInterfaces() failed",
+			"ovs_system_id", e.Client.System.ID,
+			"error", err.Error(),
+		)
 		e.IncrementErrorCounter()
 	} else {
 		for _, intf := range intfs {
@@ -933,15 +1101,21 @@ func (e *Exporter) GatherMetrics() {
 						intf.UUID,
 					))
 				case "rx_missed_errors":
-                                        e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
-                                                interfaceStatRxMissedErrors,
-                                                prometheus.CounterValue,
-                                                float64(value),
-                                                e.Client.System.ID,
-                                                intf.UUID,
-                                        ))
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStatRxMissedErrors,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
 				default:
-					log.Errorf("OVS interface statistics has unsupported key: %s, value: %d", key, value)
+					level.Error(e.logger).Log(
+						"msg", "detected malformed interface statistics",
+						"ovs_system_id", e.Client.System.ID,
+						"key", key,
+						"value", value,
+						"error", "OVS interface statistics has unsupported key",
+					)
 				}
 			}
 			e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
@@ -993,17 +1167,30 @@ func (e *Exporter) GatherMetrics() {
 			}
 		}
 	}
-	log.Debugf("%s: GatherMetrics() completed GetDbInterfaces()", e.Client.System.ID)
+
+	level.Debug(e.logger).Log(
+		"msg", "GatherMetrics() completed GetDbInterfaces()",
+		"ovs_system_id", e.Client.System.ID,
+	)
 
 	components = []string{
 		"ovsdb-server",
 	}
 
 	for _, component := range components {
-		log.Debugf("%s: GatherMetrics() calls IsDefaultPortUp(%s)", e.Client.System.ID, component)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() calls IsDefaultPortUp()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
 		defaultPortUp, err := e.Client.IsDefaultPortUp(component)
 		if err != nil {
-			log.Errorf("%s: %v", component, err)
+			level.Error(e.logger).Log(
+				"msg", "IsDefaultPortUp() failed",
+				"component", component,
+				"ovs_system_id", e.Client.System.ID,
+				"error", err.Error(),
+			)
 			e.IncrementErrorCounter()
 		}
 		e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
@@ -1014,11 +1201,25 @@ func (e *Exporter) GatherMetrics() {
 			component,
 			"default",
 		))
-		log.Debugf("%s: GatherMetrics() completed IsDefaultPortUp(%s)", e.Client.System.ID, component)
-		log.Debugf("%s: GatherMetrics() calls IsSslPortUp(%s)", e.Client.System.ID, component)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() completed IsDefaultPortUp()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
+
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() calls IsSslPortUp()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
 		sslPortUp, err := e.Client.IsSslPortUp(component)
 		if err != nil {
-			log.Errorf("%s: %v", component, err)
+			level.Error(e.logger).Log(
+				"msg", "IsDefaultPortUp() failed",
+				"component", component,
+				"ovs_system_id", e.Client.System.ID,
+				"error", err.Error(),
+			)
 			e.IncrementErrorCounter()
 		}
 		e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
@@ -1029,7 +1230,11 @@ func (e *Exporter) GatherMetrics() {
 			component,
 			"ssl",
 		))
-		log.Debugf("%s: GatherMetrics() completed IsSslPortUp(%s)", e.Client.System.ID, component)
+		level.Debug(e.logger).Log(
+			"msg", "GatherMetrics() completed IsSslPortUp()",
+			"component", component,
+			"ovs_system_id", e.Client.System.ID,
+		)
 	}
 
 	e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
@@ -1063,7 +1268,11 @@ func (e *Exporter) GatherMetrics() {
 
 	e.nextCollectionTicker = time.Now().Add(time.Duration(e.pollInterval) * time.Second).Unix()
 
-	log.Debugf("%s: GatherMetrics() returns", e.Client.System.ID)
+	level.Debug(e.logger).Log(
+		"msg", "GatherMetrics() returns",
+		"ovs_system_id", e.Client.System.ID,
+	)
+
 	return
 }
 
