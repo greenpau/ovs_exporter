@@ -25,6 +25,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/greenpau/ovsdb"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/version"
 )
 
@@ -330,6 +331,20 @@ type Exporter struct {
 
 type Options struct {
 	Timeout int
+	Logger log.Logger
+}
+
+// NewLogger returns an instance of logger.
+func NewLogger(logLevel string) (log.Logger, error) {
+	allowedLogLevel := &promlog.AllowedLevel{}
+	if err := allowedLogLevel.Set(logLevel); err != nil {
+		return nil, err
+	}
+	promlogConfig := &promlog.Config{
+		Level: allowedLogLevel,
+	}
+	logger := promlog.New(promlogConfig)
+	return logger, nil
 }
 
 // NewExporter returns an initialized Exporter.
@@ -346,6 +361,7 @@ func NewExporter(opts Options) (*Exporter, error) {
 	client.Timeout = opts.Timeout
 	e.Client = client
 	e.Client.GetSystemID()
+	e.logger = opts.Logger
 
 	level.Debug(e.logger).Log(
 		"msg", "NewExporter() calls Connect()",
@@ -371,11 +387,6 @@ func NewExporter(opts Options) (*Exporter, error) {
 	)
 
 	return &e, nil
-}
-
-// SetLogger sets exporter logger.
-func (e *Exporter) SetLogger(logger log.Logger) {
-	e.logger = logger
 }
 
 // Describe describes all the metrics ever exported by the OVN exporter. It

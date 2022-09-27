@@ -15,19 +15,26 @@
 package ovs_exporter
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func TestNewExporter(t *testing.T) {
+	logger, err := NewLogger("debug")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	opts := Options{
 		Timeout: 2,
+		Logger: logger,
 	}
 
 	exporter, err := NewExporter(opts)

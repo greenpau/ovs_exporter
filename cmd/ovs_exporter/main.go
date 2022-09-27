@@ -10,7 +10,6 @@ import (
 	ovs "github.com/greenpau/ovs_exporter/pkg/ovs_exporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/promlog"
 )
 
 func main() {
@@ -63,22 +62,6 @@ func main() {
 	flag.Usage = usageHelp
 	flag.Parse()
 
-	opts := ovs.Options{
-		Timeout: pollTimeout,
-	}
-
-	allowedLogLevel := &promlog.AllowedLevel{}
-	if err := allowedLogLevel.Set(logLevel); err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err.Error());
-		os.Exit(1);
-	}
-
-	promlogConfig := &promlog.Config{
-		Level: allowedLogLevel,
-	}
-
-	logger := promlog.New(promlogConfig)
-
 	if isShowVersion {
 		fmt.Fprintf(os.Stdout, "%s %s", ovs.GetExporterName(), ovs.GetVersion())
 		if ovs.GetRevision() != "" {
@@ -89,13 +72,24 @@ func main() {
 		os.Exit(0)
 	}
 
+	logger, err := ovs.NewLogger(logLevel)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed initializing logger: %v", err);
+		os.Exit(1);
+	}
+
 	level.Info(logger).Log(
 		"msg", "Starting exporter", 
 		"exporter", ovs.GetExporterName(), 
 		"version", ovs.GetVersionInfo(),
 		"build_context", ovs.GetVersionBuildContext(),
 	)
-	
+
+	opts := ovs.Options{
+		Timeout: pollTimeout,
+		Logger: logger,
+	}
+
 	exporter, err := ovs.NewExporter(opts)
 	if err != nil {
 		level.Error(logger).Log(
@@ -104,7 +98,6 @@ func main() {
 		)
 		os.Exit(1);
 	}
-	exporter.SetLogger(logger)
 
 	exporter.Client.System.RunDir = systemRunDir
 
