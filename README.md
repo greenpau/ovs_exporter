@@ -16,12 +16,12 @@ This exporter exports metrics from the following OVS components:
 Run the following commands to install it:
 
 ```bash
-wget https://github.com/greenpau/ovs_exporter/releases/download/v1.0.0/ovs-exporter-1.0.0.linux-amd64.tar.gz
-tar xvzf ovs-exporter-1.0.0.linux-amd64.tar.gz
+wget https://github.com/greenpau/ovs_exporter/releases/download/v1.0.4/ovs-exporter-1.0.4.linux-amd64.tar.gz
+tar xvzf ovs-exporter-1.0.4.linux-amd64.tar.gz
 cd ovs-exporter*
 ./install.sh
 cd ..
-rm -rf ovs-exporter-1.0.0.linux-amd64*
+rm -rf ovs-exporter-1.0.4.linux-amd64*
 systemctl status ovs-exporter -l
 curl -s localhost:9475/metrics | grep server_id
 ```
