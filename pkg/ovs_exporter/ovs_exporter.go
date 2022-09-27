@@ -365,7 +365,7 @@ func NewExporter(opts Options) (*Exporter, error) {
 
 	level.Debug(e.logger).Log(
 		"msg", "NewExporter() calls Connect()",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 
 	if err := client.Connect(); err != nil {
@@ -374,7 +374,7 @@ func NewExporter(opts Options) (*Exporter, error) {
 
 	level.Debug(e.logger).Log(
 		"msg", "NewExporter() calls GetSystemInfo()",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 
 	if err := e.Client.GetSystemInfo(); err != nil {
@@ -383,7 +383,7 @@ func NewExporter(opts Options) (*Exporter, error) {
 
 	level.Debug(e.logger).Log(
 		"msg", "NewExporter() initialized successfully",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 
 	return &e, nil
@@ -458,7 +458,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	level.Debug(e.logger).Log(
 		"msg", "Collect() calls RLock()",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 
 	e.RLock()
@@ -466,7 +466,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	if len(e.metrics) == 0 {
 		level.Debug(e.logger).Log(
 			"msg", "Collect() no metrics found",
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 
 		ch <- prometheus.MustNewConstMetric(
@@ -499,7 +499,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	level.Debug(e.logger).Log(
 		"msg", "Collect() sends metrics to a shared channel",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 		"metric_count", len(e.metrics),
 	)
 
@@ -513,7 +513,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func (e *Exporter) GatherMetrics() {
 	level.Debug(e.logger).Log(
 		"msg", "GatherMetrics() called",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 
 	if time.Now().Unix() < e.nextCollectionTicker {
@@ -522,14 +522,14 @@ func (e *Exporter) GatherMetrics() {
 	e.Lock()
 	level.Debug(e.logger).Log(
 		"msg", "GatherMetrics() locked",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 	defer e.Unlock()
 	if len(e.metrics) > 0 {
 		e.metrics = e.metrics[:0]
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() cleared metrics",
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 	}
 	upValue := 1
@@ -541,7 +541,7 @@ func (e *Exporter) GatherMetrics() {
 		level.Error(e.logger).Log(
 			"msg", "GetSystemInfo() failed",
 			"vswitch_name", e.Client.Database.Vswitch.Name,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 			"error", err.Error(),
 		)
 		e.IncrementErrorCounter()
@@ -550,7 +550,7 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GetSystemInfo() successful",
 			"vswitch_name", e.Client.Database.Vswitch.Name,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 	}
 
@@ -563,14 +563,14 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() calls GetProcessInfo()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 
 		if err != nil {
 			level.Error(e.logger).Log(
 				"msg", "GetProcessInfo() failed",
 				"component", component,
-				"ovs_system_id", e.Client.System.ID,
+				"system_id", e.Client.System.ID,
 				"error", err.Error(),
 			)
 			e.IncrementErrorCounter()
@@ -588,7 +588,7 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() completed GetProcessInfo()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 	}
 
@@ -600,7 +600,7 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() calls GetLogFileInfo()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 
 		file, err := e.Client.GetLogFileInfo(component)
@@ -608,7 +608,7 @@ func (e *Exporter) GatherMetrics() {
 			level.Error(e.logger).Log(
 				"msg", "GetLogFileInfo() failed",
 				"component", component,
-				"ovs_system_id", e.Client.System.ID,
+				"system_id", e.Client.System.ID,
 				"error", err.Error(),
 			)
 			e.IncrementErrorCounter()
@@ -617,7 +617,7 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() completed GetLogFileInfo()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 
 		e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
@@ -632,7 +632,7 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() calls GetLogFileEventStats()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 
 		eventStats, err := e.Client.GetLogFileEventStats(component)
@@ -640,7 +640,7 @@ func (e *Exporter) GatherMetrics() {
 			level.Error(e.logger).Log(
 				"msg", "GetLogFileEventStats() failed",
 				"component", component,
-				"ovs_system_id", e.Client.System.ID,
+				"system_id", e.Client.System.ID,
 				"error", err.Error(),
 			)
 			e.IncrementErrorCounter()
@@ -650,7 +650,7 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() completed GetLogFileEventStats()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 
 		for sev, sources := range eventStats {
@@ -677,40 +677,40 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() calls AppListCommands()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 
 		if cmds, err := e.Client.AppListCommands(component); err != nil {
 			level.Error(e.logger).Log(
 				"msg", "AppListCommands() failed",
 				"component", component,
-				"ovs_system_id", e.Client.System.ID,
+				"system_id", e.Client.System.ID,
 				"error", err.Error(),
 			)
 			e.IncrementErrorCounter()
 			level.Debug(e.logger).Log(
 				"msg", "GatherMetrics() completed AppListCommands()",
 				"component", component,
-				"ovs_system_id", e.Client.System.ID,
+				"system_id", e.Client.System.ID,
 			)
 		} else {
 			level.Debug(e.logger).Log(
 				"msg", "GatherMetrics() completed AppListCommands()",
 				"component", component,
-				"ovs_system_id", e.Client.System.ID,
+				"system_id", e.Client.System.ID,
 			)
 			if cmds["coverage/show"] {
 				level.Debug(e.logger).Log(
 					"msg", "GatherMetrics() calls GetAppCoverageMetrics()",
 					"component", component,
-					"ovs_system_id", e.Client.System.ID,
+					"system_id", e.Client.System.ID,
 				)
 
 				if metrics, err := e.Client.GetAppCoverageMetrics(component); err != nil {
 					level.Error(e.logger).Log(
 						"msg", "GetAppCoverageMetrics() failed",
 						"component", component,
-						"ovs_system_id", e.Client.System.ID,
+						"system_id", e.Client.System.ID,
 						"error", err.Error(),
 					)
 					e.IncrementErrorCounter()
@@ -743,20 +743,20 @@ func (e *Exporter) GatherMetrics() {
 				level.Debug(e.logger).Log(
 					"msg", "GatherMetrics() completed GetAppCoverageMetrics()",
 					"component", component,
-					"ovs_system_id", e.Client.System.ID,
+					"system_id", e.Client.System.ID,
 				)
 			}
 			if cmds["memory/show"] {
 				level.Debug(e.logger).Log(
 					"msg", "GatherMetrics() calls GetAppMemoryMetrics()",
 					"component", component,
-					"ovs_system_id", e.Client.System.ID,
+					"system_id", e.Client.System.ID,
 				)
 				if metrics, err := e.Client.GetAppMemoryMetrics(component); err != nil {
 					level.Error(e.logger).Log(
 						"msg", "GetAppMemoryMetrics() failed",
 						"component", component,
-						"ovs_system_id", e.Client.System.ID,
+						"system_id", e.Client.System.ID,
 						"error", err.Error(),
 					)
 					e.IncrementErrorCounter()
@@ -775,21 +775,21 @@ func (e *Exporter) GatherMetrics() {
 				level.Debug(e.logger).Log(
 					"msg", "GatherMetrics() completed GetAppMemoryMetrics()",
 					"component", component,
-					"ovs_system_id", e.Client.System.ID,
+					"system_id", e.Client.System.ID,
 				)
 			}
 			if cmds["dpif/show"] && (component == "vswitchd-service") {
 				level.Debug(e.logger).Log(
 					"msg", "GatherMetrics() calls GetAppDatapath()",
 					"component", component,
-					"ovs_system_id", e.Client.System.ID,
+					"system_id", e.Client.System.ID,
 				)
 
 				if dps, brs, intfs, err := e.Client.GetAppDatapath(component); err != nil {
 					level.Error(e.logger).Log(
 						"msg", "GetAppDatapath() failed",
 						"component", component,
-						"ovs_system_id", e.Client.System.ID,
+						"system_id", e.Client.System.ID,
 						"error", err.Error(),
 					)
 					e.IncrementErrorCounter()
@@ -887,7 +887,7 @@ func (e *Exporter) GatherMetrics() {
 				level.Debug(e.logger).Log(
 					"msg", "GatherMetrics() completed GetAppDatapath()",
 					"component", component,
-					"ovs_system_id", e.Client.System.ID,
+					"system_id", e.Client.System.ID,
 				)
 			}
 		}
@@ -895,13 +895,13 @@ func (e *Exporter) GatherMetrics() {
 
 	level.Debug(e.logger).Log(
 		"msg", "GatherMetrics() calls GetDbInterfaces()",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 
 	if intfs, err := e.Client.GetDbInterfaces(); err != nil {
 		level.Error(e.logger).Log(
 			"msg", "GetDbInterfaces() failed",
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 			"error", err.Error(),
 		)
 		e.IncrementErrorCounter()
@@ -1122,7 +1122,7 @@ func (e *Exporter) GatherMetrics() {
 				default:
 					level.Error(e.logger).Log(
 						"msg", "detected malformed interface statistics",
-						"ovs_system_id", e.Client.System.ID,
+						"system_id", e.Client.System.ID,
 						"key", key,
 						"value", value,
 						"error", "OVS interface statistics has unsupported key",
@@ -1181,7 +1181,7 @@ func (e *Exporter) GatherMetrics() {
 
 	level.Debug(e.logger).Log(
 		"msg", "GatherMetrics() completed GetDbInterfaces()",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 
 	components = []string{
@@ -1192,14 +1192,14 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() calls IsDefaultPortUp()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 		defaultPortUp, err := e.Client.IsDefaultPortUp(component)
 		if err != nil {
 			level.Error(e.logger).Log(
 				"msg", "IsDefaultPortUp() failed",
 				"component", component,
-				"ovs_system_id", e.Client.System.ID,
+				"system_id", e.Client.System.ID,
 				"error", err.Error(),
 			)
 			e.IncrementErrorCounter()
@@ -1215,20 +1215,20 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() completed IsDefaultPortUp()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() calls IsSslPortUp()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 		sslPortUp, err := e.Client.IsSslPortUp(component)
 		if err != nil {
 			level.Error(e.logger).Log(
-				"msg", "IsDefaultPortUp() failed",
+				"msg", "IsSslPortUp() failed",
 				"component", component,
-				"ovs_system_id", e.Client.System.ID,
+				"system_id", e.Client.System.ID,
 				"error", err.Error(),
 			)
 			e.IncrementErrorCounter()
@@ -1244,7 +1244,7 @@ func (e *Exporter) GatherMetrics() {
 		level.Debug(e.logger).Log(
 			"msg", "GatherMetrics() completed IsSslPortUp()",
 			"component", component,
-			"ovs_system_id", e.Client.System.ID,
+			"system_id", e.Client.System.ID,
 		)
 	}
 
@@ -1281,7 +1281,7 @@ func (e *Exporter) GatherMetrics() {
 
 	level.Debug(e.logger).Log(
 		"msg", "GatherMetrics() returns",
-		"ovs_system_id", e.Client.System.ID,
+		"system_id", e.Client.System.ID,
 	)
 
 	return
