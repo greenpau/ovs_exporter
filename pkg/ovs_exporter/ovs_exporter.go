@@ -1120,7 +1120,7 @@ func (e *Exporter) GatherMetrics() {
 						intf.UUID,
 					))
 				default:
-					level.Error(e.logger).Log(
+					level.Debug(e.logger).Log(
 						"msg", "detected malformed interface statistics",
 						"system_id", e.Client.System.ID,
 						"key", key,
