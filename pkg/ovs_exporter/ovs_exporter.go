@@ -331,7 +331,7 @@ type Exporter struct {
 
 type Options struct {
 	Timeout int
-	Logger log.Logger
+	Logger  log.Logger
 }
 
 // NewLogger returns an instance of logger.
@@ -348,7 +348,7 @@ func NewLogger(logLevel string) (log.Logger, error) {
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(opts Options) (*Exporter, error) {
+func NewExporter(opts Options) *Exporter {
 	version.Version = appVersion
 	version.Revision = gitCommit
 	version.Branch = gitBranch
@@ -360,16 +360,19 @@ func NewExporter(opts Options) (*Exporter, error) {
 	client := ovsdb.NewOvsClient()
 	client.Timeout = opts.Timeout
 	e.Client = client
-	e.Client.GetSystemID()
 	e.logger = opts.Logger
+	return &e
+}
 
+func (e *Exporter) Connect() error {
+	e.Client.GetSystemID()
 	level.Debug(e.logger).Log(
 		"msg", "NewExporter() calls Connect()",
 		"system_id", e.Client.System.ID,
 	)
 
-	if err := client.Connect(); err != nil {
-		return &e, err
+	if err := e.Client.Connect(); err != nil {
+		return err
 	}
 
 	level.Debug(e.logger).Log(
@@ -378,15 +381,14 @@ func NewExporter(opts Options) (*Exporter, error) {
 	)
 
 	if err := e.Client.GetSystemInfo(); err != nil {
-		return &e, err
+		return err
 	}
 
 	level.Debug(e.logger).Log(
 		"msg", "NewExporter() initialized successfully",
 		"system_id", e.Client.System.ID,
 	)
-
-	return &e, nil
+	return nil
 }
 
 // Describe describes all the metrics ever exported by the OVN exporter. It
