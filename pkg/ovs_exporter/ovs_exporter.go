@@ -313,6 +313,11 @@ var (
 		"Key-value pair that report external IDs of OVS interface.",
 		[]string{"system_id", "uuid", "key", "value"}, nil,
 	)
+	interfaceStateMulticastPackets = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_multicast_packets"),
+		"Represents the number of received multicast packets by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
 )
 
 // Exporter collects OVN data from the given server and exports them using
@@ -444,6 +449,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- interfaceStatusKeyValuePair
 	ch <- interfaceOptionsKeyValuePair
 	ch <- interfaceExternalIdKeyValuePair
+	ch <- interfaceStateMulticastPackets
 }
 
 // IncrementErrorCounter increases the counter of failed queries
@@ -1116,6 +1122,14 @@ func (e *Exporter) GatherMetrics() {
 				case "rx_missed_errors":
 					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
 						interfaceStatRxMissedErrors,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "rx_multicast_packets":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStateMulticastPackets,
 						prometheus.CounterValue,
 						float64(value),
 						e.Client.System.ID,
