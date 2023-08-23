@@ -34,11 +34,11 @@ func TestNewExporter(t *testing.T) {
 
 	opts := Options{
 		Timeout: 2,
-		Logger: logger,
+		Logger:  logger,
 	}
 
-	exporter, err := NewExporter(opts)
-	if err != nil {
+	exporter := NewExporter(opts)
+	if err := exporter.Connect(); err != nil {
 		t.Fatalf("expected no error, but got %q", err)
 	}
 

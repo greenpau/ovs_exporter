@@ -74,30 +74,23 @@ func main() {
 
 	logger, err := ovs.NewLogger(logLevel)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed initializing logger: %v", err);
-		os.Exit(1);
+		fmt.Fprintf(os.Stderr, "failed initializing logger: %v", err)
+		os.Exit(1)
 	}
 
 	level.Info(logger).Log(
-		"msg", "Starting exporter", 
-		"exporter", ovs.GetExporterName(), 
+		"msg", "Starting exporter",
+		"exporter", ovs.GetExporterName(),
 		"version", ovs.GetVersionInfo(),
 		"build_context", ovs.GetVersionBuildContext(),
 	)
 
 	opts := ovs.Options{
 		Timeout: pollTimeout,
-		Logger: logger,
+		Logger:  logger,
 	}
 
-	exporter, err := ovs.NewExporter(opts)
-	if err != nil {
-		level.Error(logger).Log(
-			"msg",  "failed to init properly",
-			"error", err.Error(),
-		)
-		os.Exit(1);
-	}
+	exporter := ovs.NewExporter(opts)
 
 	exporter.Client.System.RunDir = systemRunDir
 
@@ -113,8 +106,15 @@ func main() {
 
 	exporter.Client.Service.OvnController.File.Log.Path = serviceOvnControllerFileLogPath
 	exporter.Client.Service.OvnController.File.Pid.Path = serviceOvnControllerFilePidPath
+	if err := exporter.Connect(); err != nil {
+		level.Error(logger).Log(
+			"msg", "failed to init properly",
+			"error", err.Error(),
+		)
+		os.Exit(1)
+	}
 
-	level.Info(logger).Log("ovs_system_id",exporter.Client.System.ID)
+	level.Info(logger).Log("ovs_system_id", exporter.Client.System.ID)
 
 	exporter.SetPollInterval(int64(pollInterval))
 	prometheus.MustRegister(exporter)
@@ -133,9 +133,9 @@ func main() {
 	level.Info(logger).Log("listen_on ", listenAddress)
 	if err := http.ListenAndServe(listenAddress, nil); err != nil {
 		level.Error(logger).Log(
-			"msg",  "listener failed",
+			"msg", "listener failed",
 			"error", err.Error(),
 		)
-		os.Exit(1);
+		os.Exit(1)
 	}
 }

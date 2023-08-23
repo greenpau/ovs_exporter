@@ -313,6 +313,11 @@ var (
 		"Key-value pair that report external IDs of OVS interface.",
 		[]string{"system_id", "uuid", "key", "value"}, nil,
 	)
+	interfaceStateMulticastPackets = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "interface_rx_multicast_packets"),
+		"Represents the number of received multicast packets by OVS interface.",
+		[]string{"system_id", "uuid"}, nil,
+	)
 )
 
 // Exporter collects OVN data from the given server and exports them using
@@ -331,7 +336,7 @@ type Exporter struct {
 
 type Options struct {
 	Timeout int
-	Logger log.Logger
+	Logger  log.Logger
 }
 
 // NewLogger returns an instance of logger.
@@ -348,7 +353,7 @@ func NewLogger(logLevel string) (log.Logger, error) {
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(opts Options) (*Exporter, error) {
+func NewExporter(opts Options) *Exporter {
 	version.Version = appVersion
 	version.Revision = gitCommit
 	version.Branch = gitBranch
@@ -360,16 +365,19 @@ func NewExporter(opts Options) (*Exporter, error) {
 	client := ovsdb.NewOvsClient()
 	client.Timeout = opts.Timeout
 	e.Client = client
-	e.Client.GetSystemID()
 	e.logger = opts.Logger
+	return &e
+}
 
+func (e *Exporter) Connect() error {
+	e.Client.GetSystemID()
 	level.Debug(e.logger).Log(
 		"msg", "NewExporter() calls Connect()",
 		"system_id", e.Client.System.ID,
 	)
 
-	if err := client.Connect(); err != nil {
-		return &e, err
+	if err := e.Client.Connect(); err != nil {
+		return err
 	}
 
 	level.Debug(e.logger).Log(
@@ -378,15 +386,14 @@ func NewExporter(opts Options) (*Exporter, error) {
 	)
 
 	if err := e.Client.GetSystemInfo(); err != nil {
-		return &e, err
+		return err
 	}
 
 	level.Debug(e.logger).Log(
 		"msg", "NewExporter() initialized successfully",
 		"system_id", e.Client.System.ID,
 	)
-
-	return &e, nil
+	return nil
 }
 
 // Describe describes all the metrics ever exported by the OVN exporter. It
@@ -442,6 +449,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- interfaceStatusKeyValuePair
 	ch <- interfaceOptionsKeyValuePair
 	ch <- interfaceExternalIdKeyValuePair
+	ch <- interfaceStateMulticastPackets
 }
 
 // IncrementErrorCounter increases the counter of failed queries
@@ -1114,6 +1122,14 @@ func (e *Exporter) GatherMetrics() {
 				case "rx_missed_errors":
 					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
 						interfaceStatRxMissedErrors,
+						prometheus.CounterValue,
+						float64(value),
+						e.Client.System.ID,
+						intf.UUID,
+					))
+				case "rx_multicast_packets":
+					e.metrics = append(e.metrics, prometheus.MustNewConstMetric(
+						interfaceStateMulticastPackets,
 						prometheus.CounterValue,
 						float64(value),
 						e.Client.System.ID,
