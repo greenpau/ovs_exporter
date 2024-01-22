@@ -386,7 +386,12 @@ func (e *Exporter) Connect() error {
 	)
 
 	if err := e.Client.GetSystemInfo(); err != nil {
-		return err
+	        level.Error(e.logger).Log(
+		"msg", "Error occured during GetSystemInfo()",
+		"error", err.Error(),
+                "system_id", e.Client.System.ID,
+	        )
+                return nil
 	}
 
 	level.Debug(e.logger).Log(
